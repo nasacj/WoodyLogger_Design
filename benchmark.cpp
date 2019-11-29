@@ -4,8 +4,25 @@
 #include <vector>
 #include <atomic>
 #include <cstdio>
+#include <functional>
+#ifdef __linux__
+#include<sys/types.h>
+#include<sys/sysinfo.h>
+#endif
 
 using namespace woodycxx;
+
+inline void SetCpuAffinity(int cpu)
+{
+    if (cpu >= 0) {
+#ifdef __linux__
+        cpu_set_t mask;
+        CPU_ZERO(&mask);
+        CPU_SET(cpu, &mask);
+        sched_setaffinity(0, sizeof(mask), &mask);
+#endif
+    }
+}
 
 /* Returns microseconds since epoch */
 uint64_t timestamp_now()
@@ -13,8 +30,9 @@ uint64_t timestamp_now()
     return std::chrono::high_resolution_clock::now().time_since_epoch() / std::chrono::microseconds(1);
 }
 
-void log_benchmark()
+void log_benchmark(int cpu)
 {
+    SetCpuAffinity(cpu);
     int const iterations = 1e6;
     char const * const benchmark = "benchmark";
     uint64_t begin = timestamp_now();
@@ -26,12 +44,12 @@ void log_benchmark()
 }
 
 template < typename Function >
-void run_benchmark(Function && f, int thread_count)
+void run_benchmark(Function && f, int thread_count, int total_cores)
 {
     printf("Thread count: %d\n", thread_count);
     std::vector < std::thread > threads;
     for (int i = 0; i < thread_count; ++i) {
-	    threads.emplace_back(f);
+	    threads.emplace_back(f, (i % total_cores)*2 + 1);
     }
     for (int i = 0; i < thread_count; ++i) {
 	    threads[i].join();
@@ -40,12 +58,14 @@ void run_benchmark(Function && f, int thread_count)
 
 int main()
 {
-    WOODY_LOGGER_START();
+    //TODO: total cpu cores need to be set
+    int TOTAL_CORES = 2;
+    WOODY_LOGGER_START(0); //TODO: The Logger thread CPU
     WOODY_LOGGER_INIT("/dev/null", false);
     WOODY_LOGGER_LEVEL(DEBUG);
 
     for (auto threads : { 1, 2, 4, 8, 16 })
-    	run_benchmark(log_benchmark, threads);
+    	run_benchmark(log_benchmark, threads, TOTAL_CORES/2);
 
     WOODY_LOGGER_STOP();
     return 0;

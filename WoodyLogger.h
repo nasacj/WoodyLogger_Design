@@ -36,7 +36,7 @@ class WoodyLogger {
 public:
     static void Init(FILE* out_file);
     static void Init(const char* file_name, bool isEnableStdOut = true);
-    static void StartLogger();
+    static void StartLogger(int cpu = -1);
     static void StopLogger();
     static void SetLogLevel(LOGGER_LEVEL);
     static LOGGER_LEVEL GetLogLevel();
@@ -48,10 +48,10 @@ public:
 
 #ifdef WOODY_LOGGER
 
-#define WOODY_LOGGER_START() \
+#define WOODY_LOGGER_START(x) \
 do \
 { \
-    woodycxx::WoodyLogger::StartLogger(); \
+    woodycxx::WoodyLogger::StartLogger(x); \
 } \
 while(0)
 
